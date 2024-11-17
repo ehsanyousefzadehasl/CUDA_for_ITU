@@ -1,0 +1,13 @@
+#!/bin/bash
+
+#SBATCH --job-name=cuda_test_job_name                           # Job name
+#SBATCH --output=cuda_test_output_name                          # output file name
+#SBATCH --cpus-per-task=1                                       # Schedule 8 cores (includes hyperthreading)
+#SBATCH --gres=gpu                                              # Schedule a GPU, it can be on 2 gpus like gpu:2
+#SBATCH --time=00:05:00                                         # Run time (hh:mm:ss) - run for one hour max
+#SBATCH --partition=scavenge                                    # Run on either the Red or Brown queue
+
+module load CUDA/12.1.1
+
+nvcc test_cuda.cu -o test_cuda
+./test_cuda
