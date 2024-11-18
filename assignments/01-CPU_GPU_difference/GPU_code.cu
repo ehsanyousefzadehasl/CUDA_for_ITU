@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <cuda_runtime.h>
 
 __global__ void squareArrayGPU(int *d_input, int *d_output, int size) {
@@ -16,7 +15,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    int size = atoi(argv[1]); // Get array size from command line
+    int size = atoi(argv[1]);
     if (size <= 0) {
         printf("Array size must be a positive integer.\n");
         return 1;
@@ -27,46 +26,52 @@ int main(int argc, char *argv[]) {
     int *d_input, *d_output;
     int bytes = size * sizeof(int);
 
-    // Initialize input array
     for (int i = 0; i < size; i++) {
         input[i] = i + 1;
     }
 
-    // Start timing (CPU timing, including memory operations and kernel execution)
-    clock_t start = clock();
+    // Create CUDA events for timing
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
 
-    // Allocate device memory
+
     cudaMalloc((void **)&d_input, bytes);
     cudaMalloc((void **)&d_output, bytes);
 
-    // Copy data from host to device
     cudaMemcpy(d_input, input, bytes, cudaMemcpyHostToDevice);
 
-    // Define block and grid sizes
-    int threadsPerBlock = 256;
+    int threadsPerBlock = 512;
     int blocksPerGrid = (size + threadsPerBlock - 1) / threadsPerBlock;
+
+    
+
+    // Start GPU timing
+    cudaEventRecord(start);
 
     // Launch the kernel
     squareArrayGPU<<<blocksPerGrid, threadsPerBlock>>>(d_input, d_output, size);
+    cudaDeviceSynchronize();
+    
 
-    // Copy results back to host
     cudaMemcpy(output, d_output, bytes, cudaMemcpyDeviceToHost);
 
-    // Stop timing
-    clock_t end = clock();
-    double gpu_time = (double)(end - start) / CLOCKS_PER_SEC;
 
-    // Print execution time
-    printf("GPU Execution Time (including memory operations): %.6f seconds\n", gpu_time);
 
-    // Free device memory
+    // Stop GPU timing
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+
+    float gpu_time;
+    cudaEventElapsedTime(&gpu_time, start, stop);
+
+    printf("GPU Kernel Execution Time: %.6f ms\n", gpu_time);
+
+
     cudaFree(d_input);
     cudaFree(d_output);
-
-    // Free host memory
     free(input);
     free(output);
 
     return 0;
 }
-

@@ -2,8 +2,10 @@
 01-hello_world
 addition
 03-1Dstencil_shmem
+03-1D_stencil_normal
 04-dotProduct_shmem
 assignments/01-CPU_GPU_difference/CPU_code
 assignments/01-CPU_GPU_difference/GPU_code
+assignments/01-CPU_GPU_difference/MM
 stencil_shared_memory/gaussian_blur
 stencil_shared_memory/sobel_edge_detector

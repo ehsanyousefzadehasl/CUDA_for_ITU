@@ -2,34 +2,27 @@
 #include <cuda_runtime.h>
 
 #define BLOCK_SIZE 32  // Number of threads per block
-#define RADIUS 3        // Stencil radius
-#define ARRAY_SIZE 100   // Input array size (for demonstration)
+#define RADIUS 3       // Stencil radius
+#define ARRAY_SIZE 100 // Input array size (for demonstration)
 
-// CUDA kernel: 1D Stencil
-__global__ void stencil_1d(int *in, int *out, int n) {
-    __shared__ int temp[BLOCK_SIZE + 2 * RADIUS];  // Shared memory with halo
-
+// CUDA kernel: 1D Stencil without shared memory
+__global__ void stencil_1d_no_shared(int *in, int *out, int n) {
     int gindex = threadIdx.x + blockIdx.x * blockDim.x;  // Global index
-    int lindex = threadIdx.x + RADIUS;                  // Local index in shared memory
 
-    // Load input elements into shared memory
-    temp[lindex] = (gindex < n) ? in[gindex] : 0;
-
-    // Load the halo (left and right)
-    if (threadIdx.x < RADIUS) {
-        temp[lindex - RADIUS] = (gindex >= RADIUS) ? in[gindex - RADIUS] : 0;
-        temp[lindex + BLOCK_SIZE] = (gindex + BLOCK_SIZE < n) ? in[gindex + BLOCK_SIZE] : 0;
-    }
-
-    // Synchronize (ensure all the data is available before computing)
-    __syncthreads();
-
-    // Apply the stencil
-    if (gindex < n) {  // Ensure we're within bounds
+    // Ensure we're within bounds
+    if (gindex < n) {
         int result = 0;
+
+        // Fetch the value of the current element and its neighbors directly from global memory
         for (int offset = -RADIUS; offset <= RADIUS; offset++) {
-            result += temp[lindex + offset];
+            int neighbor_index = gindex + offset;
+
+            // Handle boundary conditions
+            if (neighbor_index >= 0 && neighbor_index < n) {
+                result += in[neighbor_index];
+            }
         }
+
         // Store the result in the output array
         out[gindex] = result;
     }
@@ -63,9 +56,8 @@ int main() {
     dim3 threadsPerBlock(BLOCK_SIZE);
     dim3 blocksPerGrid((n + BLOCK_SIZE - 1) / BLOCK_SIZE);
 
-
-    // Launch the stencil kernel
-    stencil_1d<<<blocksPerGrid, threadsPerBlock>>>(d_in, d_out, n);
+    // Launch the stencil kernel (no shared memory)
+    stencil_1d_no_shared<<<blocksPerGrid, threadsPerBlock>>>(d_in, d_out, n);
 
     // Copy result back to host
     cudaMemcpy(h_out, d_out, n * sizeof(int), cudaMemcpyDeviceToHost);
